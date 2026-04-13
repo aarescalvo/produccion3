@@ -57,8 +57,12 @@ import {
   Truck, Beef, Scale, ClipboardList, TrendingUp, Package, Tag, Scissors, 
   Warehouse, FileText, Settings, Calendar, LogOut, Lock, Users,
   Loader2, Plus, Search, Weight, RefreshCw, BoxSelect, Barcode, Printer, Monitor,
-  ChevronDown, ChevronRight, LayoutDashboard
+  ChevronDown, ChevronRight, LayoutDashboard, Wifi, WifiOff, CloudUpload
 } from 'lucide-react'
+
+// Resilience imports
+import { useOfflineStore } from '@/stores/offlineStore'
+import { useAppStore } from '@/stores/appStore'
 
 // Types
 interface Operador {
@@ -242,6 +246,53 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   }
 ]
+
+// ============================================================
+// Offline Status Indicator - Capa 3
+// Componente que muestra el estado de conexión y la cola de sincronización
+// ============================================================
+function OfflineStatusIndicator() {
+  const isOnline = useOfflineStore((s) => s.isOnline)
+  const pendingCount = useOfflineStore((s) => s.pendingCount)
+  const isSyncing = useOfflineStore((s) => s.isSyncing)
+  const syncAll = useOfflineStore((s) => s.syncAll)
+
+  const pending = pendingCount()
+
+  if (isOnline && pending === 0) {
+    return (
+      <div className="flex items-center gap-1.5 mt-2 text-xs text-green-600">
+        <Wifi className="w-3.5 h-3.5" />
+        <span>Conectado</span>
+      </div>
+    )
+  }
+
+  if (!isOnline) {
+    return (
+      <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600">
+        <WifiOff className="w-3.5 h-3.5" />
+        <span>Sin conexión{pending > 0 ? ` · ${pending} pendiente${pending > 1 ? 's' : ''}` : ''}</span>
+      </div>
+    )
+  }
+
+  // Online with pending items
+  return (
+    <button
+      onClick={() => syncAll()}
+      className="flex items-center gap-1.5 mt-2 text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+      disabled={isSyncing}
+    >
+      {isSyncing ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : (
+        <CloudUpload className="w-3.5 h-3.5" />
+      )}
+      <span>{isSyncing ? 'Sincronizando...' : `${pending} pendiente${pending > 1 ? 's' : ''} · Sincronizar`}</span>
+    </button>
+  )
+}
 
 export default function FrigorificoApp() {
   const [operador, setOperador] = useState<Operador | null>(null)
@@ -936,6 +987,8 @@ export default function FrigorificoApp() {
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
+          {/* Offline/Sync indicator - Capa 3 */}
+          <OfflineStatusIndicator />
         </div>
         
         {/* Navigation */}

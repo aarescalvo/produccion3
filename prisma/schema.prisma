@@ -581,6 +581,7 @@ enum TipoPesajeCamion {
 }
 
 enum EstadoPesaje {
+  BORRADOR    // Capa 2: Auto-guardado como borrador (no confirmado)
   ABIERTO
   CERRADO
   ANULADO
@@ -662,6 +663,7 @@ model ListaFaenaTropa {
 }
 
 enum EstadoListaFaena {
+  BORRADOR    // Capa 2: Lista en edición, auto-guardada
   ABIERTA
   EN_PROCESO
   CERRADA
@@ -755,6 +757,7 @@ model Romaneo {
 }
 
 enum EstadoRomaneo {
+  BORRADOR    // Capa 2: Romaneo en progreso, auto-guardado
   PENDIENTE
   CONFIRMADO
   ANULADO
@@ -1154,6 +1157,7 @@ model DetalleFactura {
 }
 
 enum EstadoFactura {
+  BORRADOR          // Capa 2: Factura en edición, auto-guardada
   PENDIENTE         // Creada pero no emitida
   EMITIDA           // Emitida al cliente
   PAGADA            // Pagada por el cliente
@@ -2473,4 +2477,35 @@ enum CondicionIva {
   MT    // Monotributista
   EX    // Exento
   NC    // No Categorizado
+}
+
+// ==================== BORRADORES (CAPA 2) ====================
+// Almacena datos de formularios en progreso que se auto-salvan
+// periódicamente. El operador puede recuperarlos si cierra
+// accidentalmente el navegador o pierde conexión.
+
+model Borrador {
+  id            String   @id @default(cuid())
+  modulo        String                     // ej: 'pesajeCamiones', 'romaneo', etc.
+  operadorId    String?                    // Quien está editando
+  datos         String                      // JSON con los datos del formulario
+  estado        EstadoBorrador @default(ACTIVO)
+
+  // Para recuperar el borrador correcto (1 borrador activo por módulo+operador)
+  sesionKey     String?                    // Clave única de sesión (módulo + operador)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([modulo, sesionKey])
+  @@index([modulo])
+  @@index([operadorId])
+  @@index([estado])
+}
+
+enum EstadoBorrador {
+  ACTIVO       // Borrador en edición
+  RECUPERADO   // Borrador recuperado por el operador
+  DESCARTADO   // Borrador descartado manualmente
+  EXPIRADO     // Borrador que expiró (más de 24hs)
 }
