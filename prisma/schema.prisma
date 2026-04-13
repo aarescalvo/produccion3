@@ -581,6 +581,7 @@ enum TipoPesajeCamion {
 }
 
 enum EstadoPesaje {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   ABIERTO
   CERRADO
   ANULADO
@@ -662,6 +663,7 @@ model ListaFaenaTropa {
 }
 
 enum EstadoListaFaena {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   ABIERTA
   EN_PROCESO
   CERRADA
@@ -755,6 +757,7 @@ model Romaneo {
 }
 
 enum EstadoRomaneo {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   PENDIENTE
   CONFIRMADO
   ANULADO
@@ -1154,6 +1157,7 @@ model DetalleFactura {
 }
 
 enum EstadoFactura {
+  BORRADOR          // Capa 2: Auto-guardado como borrador
   PENDIENTE         // Creada pero no emitida
   EMITIDA           // Emitida al cliente
   PAGADA            // Pagada por el cliente
@@ -1698,6 +1702,7 @@ model DespachoItem {
 }
 
 enum EstadoDespacho {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   PENDIENTE       // En preparación
   EN_CARGA        // Cargando en camión
   DESPACHADO      // Despachado
@@ -1758,6 +1763,7 @@ enum TipoDestinoCuero {
 }
 
 enum EstadoCuero {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   PENDIENTE
   DESPACHADO
   ANULADO
@@ -1809,6 +1815,7 @@ enum TipoRendering {
 }
 
 enum EstadoRendering {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   REGISTRADO
   DESPACHADO
   ANULADO
@@ -1847,6 +1854,7 @@ model LoteDespostada {
 }
 
 enum EstadoLote {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   ABIERTO
   CERRADO
   ANULADO
@@ -1998,6 +2006,7 @@ model RegistroEmpaque {
 }
 
 enum EstadoEmpaque {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   PENDIENTE
   EMPACADO
   DESPACHADO
@@ -2055,6 +2064,7 @@ enum TipoMedia {
 }
 
 enum EstadoIngreso {
+  BORRADOR        // Capa 2: Auto-guardado como borrador
   PENDIENTE
   INGRESADO
   EN_PROCESO

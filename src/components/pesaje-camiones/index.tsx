@@ -12,10 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { usePesajeCamiones } from './usePesajeCamiones'
+import { usePesajeCamionesResilient as usePesajeCamiones } from './usePesajeCamionesResilient'
 import { TipoAnimalCounterGrid } from './TipoAnimalCounterGrid'
 import { QuickAddDialog, QuickAddButton } from './QuickAddDialog'
 import { TIPOS_PESAJE, ESPECIES } from './constants'
+import { SaveStatusIndicator, DraftRecoveryBanner } from '@/components/providers/ResilienceProvider'
 import type { Operador } from './types'
 
 interface PesajeCamionesModuleProps {
@@ -68,12 +69,22 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: PesajeCamiones
     
     // Actions
     handleQuickAdd, handleGuardar, handleCerrarPesaje, handleDeletePesaje,
-    handleImprimirReporte, imprimirTicket
+    handleImprimirReporte, imprimirTicket,
+    
+    // Resilience indicators
+    saveStatus, isOnline, pendingDrafts, recoverDraft, dismissDrafts
   } = usePesajeCamiones({ operadorId: operador.id, onTropaCreada })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Draft Recovery Banner - Capa 2 */}
+        <DraftRecoveryBanner
+          module="pesaje-camion"
+          drafts={pendingDrafts}
+          onRecover={recoverDraft}
+          onDismiss={dismissDrafts}
+        />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -81,6 +92,12 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: PesajeCamiones
             <p className="text-stone-500">Balanza Portería</p>
           </div>
           <div className="flex items-center gap-4">
+            <SaveStatusIndicator status={saveStatus} />
+            {!isOnline && (
+              <Badge variant="destructive" className="text-xs">
+                Sin conexión
+              </Badge>
+            )}
             <Badge variant="outline" className="text-lg px-4 py-2">
               <Clock className="h-4 w-4 mr-2 text-orange-500" />
               {pesajesAbiertos.length} abiertos
