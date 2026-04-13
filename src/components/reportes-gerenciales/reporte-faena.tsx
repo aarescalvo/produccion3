@@ -15,6 +15,9 @@ import {
   Download, FileText, Filter, Printer, Calendar, 
   Beef, TrendingUp, BarChart3, RefreshCw, FileSpreadsheet
 } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import { ExcelExporter } from '@/lib/export-excel'
+import { PDFExporter } from '@/lib/export-pdf'
 
 interface Operador {
   id: string
@@ -101,35 +104,64 @@ export function ReporteFaena({ operador }: ReporteFaenaProps) {
     fetchDatos()
   }
   
-  const exportarCSV = () => {
+  const handleExportarExcel = () => {
     if (datos.length === 0) {
       toast.error('No hay datos para exportar')
       return
     }
-    
-    let csv = 'Fecha,Tropa,Especie,Tipo Animal,Cantidad,Peso Vivo (kg),Peso Media (kg),Rinde %,Productor,Usuario Faena\n'
-    
-    datos.forEach(d => {
-      csv += `${d.fecha},${d.tropaCodigo},${d.especie},${d.tipoAnimal},${d.cantidad},${d.pesoVivo},${d.pesoMedia},${d.rinde.toFixed(1)},"${d.productor}","${d.usuarioFaena}"\n`
-    })
-    
-    // Agregar totales
+
+    const headers = ['Fecha', 'Tropa', 'Especie', 'Tipo Animal', 'Cantidad', 'Peso Vivo (kg)', 'Peso Media (kg)', 'Rinde %', 'Productor', 'Usuario Faena']
+    const rows = datos.map(d => [
+      d.fecha, d.tropaCodigo, d.especie, d.tipoAnimal, d.cantidad,
+      d.pesoVivo, d.pesoMedia, d.rinde.toFixed(1), d.productor, d.usuarioFaena
+    ])
+
+    // Agregar fila de totales
     if (totales) {
-      csv += '\nTOTALES,,,,'
-      csv += `${totales.totalAnimales},${totales.totalPesoVivo},${totales.totalPesoMedia},${totales.rindePromedio.toFixed(1)},,`
-      csv += `\nTotal Tropas: ${totales.totalTropas}`
+      rows.push([
+        'TOTALES', '', '', '', totales.totalAnimales,
+        totales.totalPesoVivo, totales.totalPesoMedia,
+        totales.rindePromedio.toFixed(1), '', `Total Tropas: ${totales.totalTropas}`
+      ])
     }
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `reporte_faena_${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-    toast.success('CSV descargado')
+
+    ExcelExporter.exportToExcel({
+      filename: `reporte_faena_${new Date().toISOString().split('T')[0]}`,
+      sheets: [{ name: 'Faena', headers, data: rows }],
+      title: 'Reporte de Faena - Solemar Alimentaria',
+    })
   }
-  
-  const imprimirReporte = () => {
-    window.print()
+
+  const handleExportarPDF = () => {
+    if (datos.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    const headers = ['Fecha', 'Tropa', 'Especie', 'Tipo', 'Cant.', 'P. Vivo', 'P. Media', 'Rinde', 'Productor']
+    const rows = datos.map(d => [
+      new Date(d.fecha).toLocaleDateString('es-AR'), d.tropaCodigo, d.especie,
+      d.tipoAnimal, d.cantidad, formatNumber(d.pesoVivo),
+      formatNumber(d.pesoMedia), `${d.rinde.toFixed(1)}%`, d.productor
+    ])
+
+    // Agregar fila de totales
+    if (totales) {
+      rows.push([
+        'TOTALES', '', '', '', totales.totalAnimales,
+        formatNumber(totales.totalPesoVivo), formatNumber(totales.totalPesoMedia),
+        `${totales.rindePromedio.toFixed(1)}%`, ''
+      ])
+    }
+
+    const doc = PDFExporter.generateReport({
+      title: 'Reporte de Faena',
+      subtitle: `Período: ${fechaDesde} al ${fechaHasta}`,
+      headers,
+      data: rows,
+      orientation: 'landscape',
+    })
+    PDFExporter.downloadPDF(doc, `reporte_faena_${new Date().toISOString().split('T')[0]}.pdf`)
   }
   
   const formatNumber = (num: number) => {
@@ -260,16 +292,13 @@ export function ReporteFaena({ operador }: ReporteFaenaProps) {
             <Beef className="w-5 h-5 text-amber-500" />
             Detalle de Faena
           </CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportarCSV} disabled={datos.length === 0}>
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={imprimirReporte} disabled={datos.length === 0}>
-              <Printer className="w-4 h-4 mr-2" />
-              Imprimir
-            </Button>
-          </div>
+          <ExportButton
+            onExportExcel={handleExportarExcel}
+            onExportPDF={handleExportarPDF}
+            onPrint={() => window.print()}
+            disabled={datos.length === 0}
+            size="sm"
+          />
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (

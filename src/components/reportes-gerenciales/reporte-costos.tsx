@@ -17,6 +17,9 @@ import {
   TrendingUp, TrendingDown, RefreshCw, FileSpreadsheet,
   AlertTriangle, BarChart3, Package
 } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import { ExcelExporter } from '@/lib/export-excel'
+import { PDFExporter } from '@/lib/export-pdf'
 import {
   ChartContainer,
   ChartTooltip,
@@ -137,24 +140,63 @@ export function ReporteCostos({ operador }: ReporteCostosProps) {
     fetchDatos()
   }
   
-  const exportarCSV = () => {
+  const handleExportarExcel = () => {
     if (costosCentro.length === 0) {
       toast.error('No hay datos para exportar')
       return
     }
-    
-    let csv = 'Centro,Tipo,Costo Total,Kg Producidos,Costo/Kg,Costo/Cabeza,Presupuesto,Desviación %\n'
-    
-    costosCentro.forEach(c => {
-      csv += `"${c.centroNombre}",${c.tipoCentro},${c.costoTotal},${c.cantidadProducida},${c.costoKg.toFixed(2)},${c.costoCabeza.toFixed(2)},${c.presupuesto},${c.desviacion.toFixed(1)}\n`
+
+    // Hoja 1: Costos por Centro
+    const centroHeaders = ['Centro', 'Tipo', 'Costo Total', 'Kg Producidos', 'Costo/Kg', 'Costo/Cabeza', 'Presupuesto', 'Desviación %']
+    const centroRows = costosCentro.map(c => [
+      c.centroNombre, c.tipoCentro, c.costoTotal, c.cantidadProducida,
+      c.costoKg.toFixed(2), c.costoCabeza.toFixed(2), c.presupuesto, c.desviacion.toFixed(1)
+    ])
+
+    // Hoja 2: Costos por Insumo
+    const insumoHeaders = ['Insumo', 'Categoría', 'Cantidad Consumida', 'Unidad', 'Costo Unitario', 'Costo Total', '% Total']
+    const insumoRows = costosInsumo.map(i => [
+      i.insumoNombre, i.categoria, i.cantidadConsumida, i.unidad,
+      i.costoUnitario, i.costoTotal, i.porcentajeTotal.toFixed(1)
+    ])
+
+    // Hoja 3: Comparativo
+    const compHeaders = ['Período', 'Costo Real', 'Costo Estándar', 'Desviación']
+    const compRows = comparativo.map(c => [c.periodo, c.costoReal, c.costoEstandar, c.desviacion.toFixed(1)])
+
+    ExcelExporter.exportToExcel({
+      filename: `reporte_costos_${mes}`,
+      sheets: [
+        { name: 'Por Centro', headers: centroHeaders, data: centroRows },
+        { name: 'Por Insumo', headers: insumoHeaders, data: insumoRows },
+        { name: 'Comparativo', headers: compHeaders, data: compRows },
+      ],
+      title: 'Reporte de Costos - Solemar Alimentaria',
     })
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `reporte_costos_${mes}.csv`
-    link.click()
-    toast.success('CSV descargado')
+  }
+
+  const handleExportarPDF = () => {
+    if (costosCentro.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    const headers = ['Centro', 'Tipo', 'Costo Total', 'Kg Prod.', '$/Kg', '$/Cabeza', 'Presupuesto', 'Desv. %']
+    const rows = costosCentro.map(c => [
+      c.centroNombre, c.tipoCentro, formatCurrency(c.costoTotal),
+      formatNumber(c.cantidadProducida), formatCurrency(c.costoKg),
+      formatCurrency(c.costoCabeza), formatCurrency(c.presupuesto),
+      `${c.desviacion > 0 ? '+' : ''}${c.desviacion.toFixed(1)}%`
+    ])
+
+    const doc = PDFExporter.generateReport({
+      title: 'Reporte de Costos',
+      subtitle: `Período: ${mes}`,
+      headers,
+      data: rows,
+      orientation: 'landscape',
+    })
+    PDFExporter.downloadPDF(doc, `reporte_costos_${mes}.pdf`)
   }
   
   const formatCurrency = (value: number) => {
@@ -274,10 +316,13 @@ export function ReporteCostos({ operador }: ReporteCostosProps) {
           <Card className="border-0 shadow-md">
             <CardHeader className="bg-stone-50 rounded-t-lg flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Costos por Centro de Producción</CardTitle>
-              <Button variant="outline" size="sm" onClick={exportarCSV}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
+              <ExportButton
+              onExportExcel={handleExportarExcel}
+              onExportPDF={handleExportarPDF}
+              onPrint={() => window.print()}
+              disabled={costosCentro.length === 0}
+              size="sm"
+            />
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (

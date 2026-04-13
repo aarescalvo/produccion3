@@ -18,6 +18,9 @@ import { imprimirRomaneoGeneral, type RomaneoItem, type ResumenTropa } from '@/c
 import { imprimirControlDenticion, type DenticionControlOptions } from '@/components/lista-faena/denticionPrint'
 import { imprimirMenudencias, createEmptyMenudenciasData, type MenudenciasData } from '@/components/lista-faena/menudenciasPrint'
 import { CodigoEAN128Dialog } from '@/components/codigo-ean128/CodigoEAN128Dialog'
+import { ExportButton } from '@/components/ui/export-button'
+import { ExcelExporter } from '@/lib/export-excel'
+import { PDFExporter } from '@/lib/export-pdf'
 
 interface Tropa {
   id: string
@@ -106,6 +109,62 @@ export function ReportesDocumentos() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Exportar datos a Excel
+  const handleExportarExcel = () => {
+    if (romaneos.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    // Hoja 1: Romaneos
+    const romaneoHeaders = ['Garrón', 'Tropa', 'Tipo Animal', 'Peso Vivo', 'Dentición', 'Peso Media Izq', 'Peso Media Der', 'Peso Total', 'Fecha']
+    const romaneoRows = romaneos.map(r => [
+      r.garron, r.tropaCodigo || '', r.tipoAnimal || '', r.pesoVivo || '',
+      r.denticion || '', r.pesoMediaIzq || '', r.pesoMediaDer || '',
+      r.pesoTotal || '', r.fecha
+    ])
+
+    // Hoja 2: Tropas
+    const tropaHeaders = ['Número', 'Código', 'Especie', 'Cabezas', 'DTE', 'Guía', 'Productor', 'Usuario Faena']
+    const tropaRows = tropas.map(t => [
+      t.numero, t.codigo, t.especie, t.cantidadCabezas,
+      t.dte, t.guia, t.productor?.nombre || '', t.usuarioFaena?.nombre || ''
+    ])
+
+    ExcelExporter.exportToExcel({
+      filename: `documentos_faena_${fecha}`,
+      sheets: [
+        { name: 'Romaneos', headers: romaneoHeaders, data: romaneoRows },
+        { name: 'Tropas', headers: tropaHeaders, data: tropaRows },
+      ],
+      title: 'Documentos de Faena - Solemar Alimentaria',
+    })
+  }
+
+  // Exportar datos a PDF
+  const handleExportarPDF = () => {
+    if (romaneos.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    const headers = ['Garrón', 'Tropa', 'Tipo', 'P. Vivo', 'Dent.', 'P. Media Izq', 'P. Media Der', 'P. Total']
+    const rows = romaneos.map(r => [
+      r.garron, r.tropaCodigo || '', r.tipoAnimal || '', r.pesoVivo || '-',
+      r.denticion || '-', r.pesoMediaIzq || '-', r.pesoMediaDer || '-',
+      r.pesoTotal || '-'
+    ])
+
+    const doc = PDFExporter.generateReport({
+      title: 'Documentos de Faena',
+      subtitle: `Fecha: ${new Date(fecha).toLocaleDateString('es-AR')}`,
+      headers,
+      data: rows,
+      orientation: 'landscape',
+    })
+    PDFExporter.downloadPDF(doc, `documentos_faena_${fecha}.pdf`)
   }
 
   // Imprimir Planilla 01 por Tropa
@@ -241,6 +300,13 @@ export function ReportesDocumentos() {
           <CardDescription>
             Imprima los documentos oficiales según formatos establecidos
           </CardDescription>
+          <ExportButton
+            onExportExcel={handleExportarExcel}
+            onExportPDF={handleExportarPDF}
+            onPrint={() => window.print()}
+            disabled={romaneos.length === 0}
+            size="sm"
+          />
         </CardHeader>
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

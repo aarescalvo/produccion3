@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { Calendar, Download, TrendingUp, Loader2, FileSpreadsheet } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import { PDFExporter } from '@/lib/export-pdf'
+import { exportReport } from '@/lib/reportes-api'
 
 interface RendimientoData {
   tropaCodigo: string
@@ -97,6 +100,29 @@ export function ReporteRendimiento() {
     }
   }
 
+  const handleExportarPDF = () => {
+    if (datos.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    const headers = ['Tropa', 'Especie', 'Animales', 'P. Vivo Total', 'P. Faena Total', 'Rinde Prom.', 'Rinde Min', 'Rinde Max', 'Desvío']
+    const rows = datos.map(d => [
+      d.tropaCodigo, d.especie, d.cantidadAnimales.toString(),
+      d.pesoVivoTotal.toLocaleString(), d.pesoFaenaTotal.toLocaleString(),
+      d.rindePromedio.toFixed(1) + '%', d.rindeMinimo.toFixed(1) + '%',
+      d.rindeMaximo.toFixed(1) + '%', d.desvio.toFixed(2)
+    ])
+    const doc = PDFExporter.generateReport({
+      title: 'Reporte de Rendimientos',
+      subtitle: `Período: ${fechaDesde} - ${fechaHasta}`,
+      headers,
+      data: rows,
+      orientation: 'landscape',
+    })
+    PDFExporter.downloadPDF(doc, `reporte_rendimiento_${fechaDesde}_${fechaHasta}.pdf`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Filtros */}
@@ -143,10 +169,13 @@ export function ReporteRendimiento() {
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
                 <span className="ml-2">Buscar</span>
               </Button>
-              <Button variant="outline" onClick={handleExportar} disabled={exporting || datos.length === 0}>
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-                <span className="ml-2">Excel</span>
-              </Button>
+              <ExportButton
+                onExportExcel={handleExportar}
+                onExportPDF={handleExportarPDF}
+                onPrint={() => window.print()}
+                disabled={exporting || datos.length === 0}
+                size="default"
+              />
             </div>
           </div>
         </CardContent>

@@ -43,6 +43,9 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import { ExcelExporter } from '@/lib/export-excel'
+import { PDFExporter } from '@/lib/export-pdf'
 
 // Types
 interface Operador {
@@ -215,34 +218,76 @@ export function ReportesAvanzadosModule({ operador }: ReportesAvanzadosProps) {
   }, [fetchData])
 
   // Export functions
-  const exportToExcel = () => {
+  const getReporteLabel = () => {
+    return TIPOS_REPORTE.find(t => t.value === tipoReporte)?.label || tipoReporte
+  }
+
+  const getHeadersAndRows = (): { headers: string[]; rows: any[][] } => {
+    switch (tipoReporte) {
+      case 'produccion':
+        return {
+          headers: ['Fecha', 'KG Faenados', 'Cabezas', 'Rinde %'],
+          rows: (data as ProduccionDiaria[]).map(d => [d.fecha, d.kgFaenados, d.cabezas, d.rindePromedio.toFixed(1)])
+        }
+      case 'rinde-productor':
+        return {
+          headers: ['#', 'Productor', 'Cabezas', 'KG Vivo', 'KG Media', 'Rinde %'],
+          rows: (data as RindeProductor[]).map(d => [d.posicion, d.productorNombre, d.totalCabezas, d.totalKgVivo, d.totalKgMedia, d.rindePromedio.toFixed(1)])
+        }
+      case 'rinde-animal':
+        return {
+          headers: ['Tipo', 'Cantidad', 'KG Vivo', 'KG Media', 'Rinde Min', 'Rinde Prom', 'Rinde Max'],
+          rows: (data as RindeAnimal[]).map(d => [d.tipoAnimal, d.cantidad, d.totalKgVivo, d.totalKgMedia, d.rindeMin.toFixed(1), d.rindePromedio.toFixed(1), d.rindeMax.toFixed(1)])
+        }
+      case 'stock-camaras':
+        return {
+          headers: ['Cámara', 'Tipo', 'Piezas', 'KG', 'Capacidad', 'Ocupación %'],
+          rows: (data as StockCamara[]).map(d => [d.camaraNombre, d.tipoCamara, d.totalPiezas, d.totalKg, d.capacidad, d.porcentajeOcupacion.toFixed(0)])
+        }
+      case 'despachos':
+        return {
+          headers: ['Cliente', 'Despachos', 'KG', 'Facturado'],
+          rows: (data as DespachoData[]).map(d => [d.clienteNombre, d.totalDespachos, d.totalKg, d.totalFacturado])
+        }
+      case 'curva-faena':
+        return {
+          headers: ['Día', 'Total Animales', 'Total KG', 'Promedio/Día'],
+          rows: (data as CurvaFaena[]).map(d => [d.dia, d.totalAnimales, d.totalKg, d.promedioDiario.toFixed(1)])
+        }
+      default:
+        return { headers: [], rows: [] }
+    }
+  }
+
+  const handleExportarExcel = () => {
     if (data.length === 0) {
       toast.error('No hay datos para exportar')
       return
     }
 
-    const headers = Object.keys(data[0] as Record<string, unknown>)
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row =>
-        headers.map(h => {
-          const value = (row as Record<string, unknown>)[h]
-          return typeof value === 'string' ? `"${value}"` : value
-        }).join(',')
-      )
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `reporte_${tipoReporte}_${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-    toast.success('Archivo exportado')
+    const { headers, rows } = getHeadersAndRows()
+    ExcelExporter.exportToExcel({
+      filename: `reporte_${tipoReporte}`,
+      sheets: [{ name: getReporteLabel(), headers, data: rows }],
+      title: `Reporte de ${getReporteLabel()} - Solemar Alimentaria`,
+    })
   }
 
-  const exportToPDF = () => {
-    toast.info('Exportando a PDF...')
-    window.print()
+  const handleExportarPDF = () => {
+    if (data.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    const { headers, rows } = getHeadersAndRows()
+    const doc = PDFExporter.generateReport({
+      title: `Reporte de ${getReporteLabel()}`,
+      subtitle: `Período: ${fechaDesde || 'Inicio'} al ${fechaHasta || 'Hoy'}`,
+      headers,
+      data: rows,
+      orientation: 'landscape',
+    })
+    PDFExporter.downloadPDF(doc, `reporte_${tipoReporte}.pdf`)
   }
 
   // Render KPI cards
@@ -833,16 +878,12 @@ export function ReportesAvanzadosModule({ operador }: ReportesAvanzadosProps) {
             <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Reportes Avanzados</h1>
             <p className="text-stone-500 mt-1">Análisis detallado de producción y rendimiento</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={exportToExcel} disabled={loading || data.length === 0}>
-              <Download className="w-4 h-4 mr-2" />
-              Excel
-            </Button>
-            <Button variant="outline" onClick={exportToPDF} disabled={loading || data.length === 0}>
-              <FileText className="w-4 h-4 mr-2" />
-              PDF
-            </Button>
-          </div>
+          <ExportButton
+            onExportExcel={handleExportarExcel}
+            onExportPDF={handleExportarPDF}
+            onPrint={() => window.print()}
+            disabled={loading || data.length === 0}
+          />
         </div>
 
         {/* Filters */}

@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner'
 import { Package, Loader2, FileSpreadsheet, Warehouse, Beef } from 'lucide-react'
 import { exportReport } from '@/lib/reportes-api'
+import { ExportButton } from '@/components/ui/export-button'
+import { PDFExporter } from '@/lib/export-pdf'
 
 interface StockData {
   camaraId: string
@@ -94,6 +96,27 @@ export function ReporteStock() {
     }
   }
 
+  const handleExportarPDF = () => {
+    if (datos.length === 0) {
+      toast.error('No hay datos para exportar')
+      return
+    }
+
+    const headers = ['Cámara', 'Tropa', 'Especie', 'Cantidad', 'Peso Total', 'P. Promedio', 'Fecha Ingreso', 'Días']
+    const rows = datos.map(d => [
+      d.camaraNombre, d.tropaCodigo || 'N/A', d.especie,
+      d.cantidad.toString(), d.pesoTotal.toFixed(1) + ' kg',
+      d.pesoPromedio.toFixed(1) + ' kg', d.fechaIngreso, d.diasEnCamara.toString()
+    ])
+    const doc = PDFExporter.generateReport({
+      title: 'Reporte de Stock de Cámaras',
+      headers,
+      data: rows,
+      orientation: 'landscape',
+    })
+    PDFExporter.downloadPDF(doc, `reporte_stock_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Filtros */}
@@ -134,10 +157,13 @@ export function ReporteStock() {
               </Select>
             </div>
             <div className="col-span-2 flex items-end justify-end">
-              <Button variant="outline" onClick={handleExportar} disabled={exporting || datos.length === 0}>
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-                <span className="ml-2">Exportar Excel</span>
-              </Button>
+              <ExportButton
+                onExportExcel={handleExportar}
+                onExportPDF={handleExportarPDF}
+                onPrint={() => window.print()}
+                disabled={exporting || datos.length === 0}
+                size="default"
+              />
             </div>
           </div>
         </CardContent>

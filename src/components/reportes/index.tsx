@@ -17,6 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { ExportButton } from '@/components/ui/export-button'
+import { ExcelExporter } from '@/lib/export-excel'
+import { PDFExporter } from '@/lib/export-pdf'
 
 interface Operador {
   id: string
@@ -248,6 +251,60 @@ export function ReportesModule({ operador }: { operador: Operador }) {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleBuscar()
+  }
+
+  const exportarExcel = (tipo: string) => {
+    const dateStr = new Date().toISOString().split('T')[0]
+    
+    if (tipo === 'faena') {
+      ExcelExporter.exportToExcel({
+        filename: `reporte_faena_${dateStr}`,
+        sheets: [{ name: 'Faena Diaria', headers: ['Fecha', 'Animales', 'Medias', 'Peso Total (kg)'], data: faenaDiaria.map(d => [new Date(d.fecha).toLocaleDateString('es-AR'), d.totalAnimales.toString(), d.totalMedias.toString(), d.pesoTotal.toLocaleString('es-AR')]) }],
+        title: 'Reporte Faena Diaria - Solemar Alimentaria'
+      })
+    } else if (tipo === 'rendimiento') {
+      ExcelExporter.exportToExcel({
+        filename: `reporte_rendimiento_${dateStr}`,
+        sheets: [{ name: 'Rendimiento', headers: ['Tropa', 'Productor', 'Cabezas', 'Peso Vivo (kg)', 'Peso Media (kg)', 'Rinde %'], data: rendimientos.map(r => [r.tropaCodigo, r.productor?.nombre || '-', r.cantidad.toString(), r.pesoVivoTotal.toLocaleString('es-AR'), r.pesoMediaTotal.toLocaleString('es-AR'), r.rinde.toFixed(1)]) }],
+        title: 'Reporte Rendimiento por Tropa - Solemar Alimentaria'
+      })
+    } else if (tipo === 'stock') {
+      ExcelExporter.exportToExcel({
+        filename: `reporte_stock_${dateStr}`,
+        sheets: [{ name: 'Stock Cámaras', headers: ['Cámara', 'Tipo', 'Medias', 'Peso (kg)'], data: stockCamaras.map(s => [s.camara, s.tipo, s.totalMedias.toString(), s.pesoTotal.toLocaleString('es-AR')]) }],
+        title: 'Reporte Stock Cámaras - Solemar Alimentaria'
+      })
+    } else if (tipo === 'romaneos') {
+      ExcelExporter.exportToExcel({
+        filename: `reporte_romaneos_${dateStr}`,
+        sheets: [{ name: 'Romaneos', headers: ['Fecha', 'Tropa', 'Garrón', 'Tipo Animal', 'Peso Vivo', 'Peso Total', 'Rinde %'], data: romaneos.map(r => [new Date(r.fecha).toLocaleDateString('es-AR'), r.tropaCodigo, r.garron.toString(), r.tipoAnimal || '-', (r.pesoVivo || 0).toString(), (r.pesoTotal || 0).toString(), (r.rinde?.toFixed(1) || '0')]) }],
+        title: 'Reporte Romaneos - Solemar Alimentaria'
+      })
+    }
+  }
+
+  const exportarPDF = (tipo: string) => {
+    if (tipo === 'faena') {
+      const headers = ['Fecha', 'Animales', 'Medias', 'Peso Total (kg)']
+      const rows = faenaDiaria.map(d => [new Date(d.fecha).toLocaleDateString('es-AR'), d.totalAnimales.toString(), d.totalMedias.toString(), d.pesoTotal.toLocaleString('es-AR')])
+      const doc = PDFExporter.generateReport({ title: 'Reporte Faena Diaria', headers, data: rows, orientation: 'landscape' })
+      PDFExporter.downloadPDF(doc, `reporte_faena_${new Date().toISOString().split('T')[0]}.pdf`)
+    } else if (tipo === 'rendimiento') {
+      const headers = ['Tropa', 'Productor', 'Cabezas', 'Peso Vivo (kg)', 'Peso Media (kg)', 'Rinde %']
+      const rows = rendimientos.map(r => [r.tropaCodigo, r.productor?.nombre || '-', r.cantidad.toString(), r.pesoVivoTotal.toLocaleString('es-AR'), r.pesoMediaTotal.toLocaleString('es-AR'), r.rinde.toFixed(1) + '%'])
+      const doc = PDFExporter.generateReport({ title: 'Reporte Rendimiento por Tropa', headers, data: rows, orientation: 'landscape' })
+      PDFExporter.downloadPDF(doc, `reporte_rendimiento_${new Date().toISOString().split('T')[0]}.pdf`)
+    } else if (tipo === 'stock') {
+      const headers = ['Cámara', 'Tipo', 'Medias', 'Peso (kg)']
+      const rows = stockCamaras.map(s => [s.camara, s.tipo, s.totalMedias.toString(), s.pesoTotal.toLocaleString('es-AR')])
+      const doc = PDFExporter.generateReport({ title: 'Reporte Stock Cámaras', headers, data: rows, orientation: 'landscape' })
+      PDFExporter.downloadPDF(doc, `reporte_stock_${new Date().toISOString().split('T')[0]}.pdf`)
+    } else if (tipo === 'romaneos') {
+      const headers = ['Fecha', 'Tropa', 'Garrón', 'Tipo Animal', 'Peso Vivo', 'Peso Total', 'Rinde %']
+      const rows = romaneos.map(r => [new Date(r.fecha).toLocaleDateString('es-AR'), r.tropaCodigo, r.garron.toString(), r.tipoAnimal || '-', (r.pesoVivo || 0).toString(), (r.pesoTotal || 0).toString(), (r.rinde?.toFixed(1) || '0') + '%'])
+      const doc = PDFExporter.generateReport({ title: 'Reporte Romaneos', headers, data: rows, orientation: 'landscape' })
+      PDFExporter.downloadPDF(doc, `reporte_romaneos_${new Date().toISOString().split('T')[0]}.pdf`)
+    }
   }
 
   const exportarCSV = (tipo: string) => {
@@ -727,9 +784,7 @@ export function ReportesModule({ operador }: { operador: Operador }) {
               <Card className="border-0 shadow-md">
                 <CardHeader className="bg-stone-50 flex flex-row items-center justify-between">
                   <CardTitle>Stock por Cámara</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => exportarCSV('stock')}>
-                    <Download className="w-4 h-4 mr-1" /> CSV
-                  </Button>
+                  <ExportButton onExportExcel={() => exportarExcel('stock')} onExportPDF={() => exportarPDF('stock')} onPrint={() => window.print()} size="sm" label="Exportar" />
                 </CardHeader>
                 <CardContent className="p-0">
                   {stockCamaras.length === 0 ? (
@@ -804,9 +859,7 @@ export function ReportesModule({ operador }: { operador: Operador }) {
             <Card className="border-0 shadow-md">
               <CardHeader className="bg-stone-50 flex flex-row items-center justify-between">
                 <CardTitle>Rendimiento por Tropa</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => exportarCSV('rendimiento')}>
-                  <Download className="w-4 h-4 mr-1" /> CSV
-                </Button>
+                <ExportButton onExportExcel={() => exportarExcel('rendimiento')} onExportPDF={() => exportarPDF('rendimiento')} onPrint={() => window.print()} size="sm" label="Exportar" />
               </CardHeader>
               <CardContent className="p-0">
                 {rendimientos.length === 0 ? (
@@ -971,9 +1024,7 @@ export function ReportesModule({ operador }: { operador: Operador }) {
                 <CardTitle>Romaneos de Faena</CardTitle>
                 <div className="flex gap-2 items-center">
                   <Input placeholder="Filtrar por tropa..." value={filtroTropa} onChange={(e) => setFiltroTropa(e.target.value)} className="w-40" />
-                  <Button variant="outline" size="sm" onClick={() => exportarCSV('romaneos')}>
-                    <Download className="w-4 h-4 mr-1" /> CSV
-                  </Button>
+                  <ExportButton onExportExcel={() => exportarExcel('romaneos')} onExportPDF={() => exportarPDF('romaneos')} onPrint={() => window.print()} size="sm" label="Exportar" />
                 </div>
               </CardHeader>
               <CardContent className="p-0">
